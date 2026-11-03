@@ -1,0 +1,6 @@
+body { background-color: #f4f6f9; }
+.progress-summary { top: 0.5rem; z-index: 10; }
+.course-completed { background-color: #e9f7ef; }
+.course-available { background-color: #ffffff; }
+.course-locked { background-color: #eceef1; opacity: 0.75; }
+.course-locked .card-title, .course-locked .card-subtitle { color: #6c757d; }
