@@ -1,0 +1,97 @@
+### Aurora CS Course Scheduler API tests (WebStorm HTTP Client)
+### Reset the database first: run sql/schema.sql then sql/seed.sql
+
+@baseUrl = http://localhost:3000/api
+
+### ---------- COURSES ----------
+
+### GET all courses (200)
+GET {{baseUrl}}/courses
+
+### GET one course (200)
+GET {{baseUrl}}/courses/10
+
+### ERROR: GET a course that does not exist (404)
+GET {{baseUrl}}/courses/999
+
+### POST a new course with prerequisites (201, new id 11 on fresh seed)
+POST {{baseUrl}}/courses
+Content-Type: application/json
+
+{ "number": "CSC4600", "title": "Cloud Computing", "credits": 3,
+  "description": "Test course", "prerequisites": [5, 9] }
+
+### ERROR: POST missing title and credits (400)
+POST {{baseUrl}}/courses
+Content-Type: application/json
+
+{ "number": "CSC4700", "description": "Missing required fields" }
+
+### ERROR: POST with a prerequisite that does not exist (400)
+POST {{baseUrl}}/courses
+Content-Type: application/json
+
+{ "number": "CSC4700", "title": "Bad Prereq", "credits": 3, "prerequisites": [999] }
+
+### PUT update CSC3700 to require CSC2200 and CSC3250 (200)
+PUT {{baseUrl}}/courses/7
+Content-Type: application/json
+
+{ "number": "CSC3700", "title": "Advanced Web Application Development", "credits": 3,
+  "description": "React, Node/Express, MySQL, JWT authentication.", "prerequisites": [3, 5] }
+
+### ERROR: PUT missing number (400)
+PUT {{baseUrl}}/courses/7
+Content-Type: application/json
+
+{ "title": "No Number", "credits": 3 }
+
+### ERROR: PUT a course that does not exist (404)
+PUT {{baseUrl}}/courses/999
+Content-Type: application/json
+
+{ "number": "CSC9999", "title": "Ghost", "credits": 3, "prerequisites": [] }
+
+### DELETE the course created above (200 + deleted course)
+DELETE {{baseUrl}}/courses/11
+
+### ERROR: DELETE a course that does not exist (404)
+DELETE {{baseUrl}}/courses/999
+
+### ---------- COMPLETIONS ----------
+
+### GET completions (200) -> [1, 3] on fresh seed
+GET {{baseUrl}}/completions
+
+### PUT a valid completion list (200) -> [1, 2, 3]
+PUT {{baseUrl}}/completions
+Content-Type: application/json
+
+[1, 3, 2]
+
+### PUT an empty list clears all completions (200) -> []
+PUT {{baseUrl}}/completions
+Content-Type: application/json
+
+[]
+
+### ERROR: PUT breaks a prerequisite - CSC4990 with nothing else (400, nothing saved)
+PUT {{baseUrl}}/completions
+Content-Type: application/json
+
+[10]
+
+### ERROR: PUT CSC2150 without CSC1700 (400, nothing saved)
+PUT {{baseUrl}}/completions
+Content-Type: application/json
+
+[2]
+
+### ERROR: PUT body is not an array (400)
+PUT {{baseUrl}}/completions
+Content-Type: application/json
+
+{ "completed": [1] }
+
+### Confirm the rejected PUTs saved nothing
+GET {{baseUrl}}/completions
