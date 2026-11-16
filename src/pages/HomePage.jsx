@@ -1,31 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import useFetch from '../hooks/useFetch'
 import CourseList from '../components/CourseList'
 import ProgressSummary from '../components/ProgressSummary'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-const STORAGE_KEY = 'completedCourses'
 
 // Feature: Availability logic
 const isAvailable = (course, completed) =>
   course.prerequisites.every((prereqId) => completed.includes(prereqId))
 
-// Feature: Restore saved state from localStorage
-const loadSaved = () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
-    return Array.isArray(saved) ? saved : []
-  } catch {
-    return []
-  }
-}
-
 const HomePage = () => {
-  // Feature: Fetch courses from JSON Server with useFetch
-  const { data: courses, isPending, error } = useFetch(`${API_BASE_URL}/courses`)
-  const [completed, setCompleted] = useState(loadSaved)
+  // Feature: Fetch courses and saved completions from the Express API with useFetch
+  const { data: courses, isPending, error } = useFetch(`${API_BASE_URL}/api/courses`)
+  const {
+    data: savedCompletions,
+    isPending: completionsPending,
+    error: completionsError,
+  } = useFetch(`${API_BASE_URL}/api/completions`)
+  const [completed, setCompleted] = useState([])
   const [filter, setFilter] = useState('all')
-  const [saveMessage, setSaveMessage] = useState('')
+  const [saveMessage, setSaveMessage] = useState(null) // { type: 'success' | 'danger', text }
+  const [isSaving, setIsSaving] = useState(false)
+
+  // When the fetch finishes, copy the server's list into editable state
+  useEffect(() => {
+    if (Array.isArray(savedCompletions)) setCompleted(savedCompletions)
+  }, [savedCompletions])
 
   // Feature: Completed / Available / Locked status
   const getStatus = (course) => {
@@ -61,17 +61,35 @@ const HomePage = () => {
       if (!isAvailable(course, completed)) return
       setCompleted([...completed, courseId])
     }
-    setSaveMessage('')
+    setSaveMessage(null)
   }
 
-  // Feature: Save to localStorage
-  const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(completed))
-    setSaveMessage(`Saved at ${new Date().toLocaleTimeString()}`)
+  // Feature: Save completions to the database with PUT /api/completions
+  const handleSave = async () => {
+    setIsSaving(true)
+    setSaveMessage(null)
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/completions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(completed),
+      })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        // A 400 carries the server's own error message
+        throw new Error(body?.error || `Save failed (HTTP ${res.status})`)
+      }
+      setCompleted(body)
+      setSaveMessage({ type: 'success', text: `Saved at ${new Date().toLocaleTimeString()}` })
+    } catch (err) {
+      setSaveMessage({ type: 'danger', text: err.message || 'Save failed' })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Feature: Loading state
-  if (isPending) {
+  if (isPending || completionsPending) {
     return (
       <div className="text-center my-5">
         <div className="spinner-border text-primary" role="status" />
@@ -81,11 +99,13 @@ const HomePage = () => {
   }
 
   // Feature: Error state
-  if (error) {
+  if (error || completionsError) {
     return (
       <div className="alert alert-danger">
         <h5 className="alert-heading">Error loading courses</h5>
-        <p className="mb-0">{error}. Make sure JSON Server is running on {API_BASE_URL}.</p>
+        <p className="mb-0">
+          {error || completionsError}. Make sure the Express API is running on {API_BASE_URL}.
+        </p>
       </div>
     )
   }
@@ -137,9 +157,13 @@ const HomePage = () => {
         </div>
         {/* Feature: Save button */}
         <div className="d-flex align-items-center gap-2">
-          {saveMessage && <span className="text-success small">{saveMessage}</span>}
-          <button type="button" className="btn btn-success" onClick={handleSave}>
-            Save
+          {saveMessage && (
+            <span className={`text-${saveMessage.type} small`} role="status">
+              {saveMessage.text}
+            </span>
+          )}
+          <button type="button" className="btn btn-success" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>

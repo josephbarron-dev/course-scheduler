@@ -9,6 +9,10 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
+    // Keep idle connections alive so the remote class server doesn't drop them
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    idleTimeout: 60000,
 })
 
 module.exports = pool

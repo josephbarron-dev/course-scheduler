@@ -1,6 +1,7 @@
 // Feature: About page (author, date, version)
+import { version as VERSION } from '../../package.json'
+
 const AUTHOR = 'Joseph Barron'
-const VERSION = '1.0.0'
 
 const AboutPage = () => {
   const today = new Date().toLocaleDateString(undefined, {
