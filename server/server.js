@@ -15,7 +15,7 @@ app.use('/api', courseRoutes)
 app.use('/api', completionRoutes)
 
 // Bad JSON in a request body returns a JSON 400 instead of an HTML error page
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
     if (err.type === 'entity.parse.failed') {
         return res.status(400).json({ error: 'Request body is not valid JSON' })
     }
